@@ -1,0 +1,5 @@
+Flask
+python-docx
+textdistance
+beautifulsoup4
+gunicorn

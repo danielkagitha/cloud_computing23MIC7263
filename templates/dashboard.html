@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><title>Dashboard</title></head>
+<body>
+<h2>Welcome {{ session.username }}</h2>
+<h3>Your uploaded files:</h3>
+<ul>
+  {% for f in files %}
+  <li>{{ f }}</li>
+  {% endfor %}
+</ul>
+<a href="/upload">Upload new file</a> | <a href="/logout">Logout</a>
+</body>
+</html>
