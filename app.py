@@ -154,18 +154,22 @@ def get_user_by_username(username):
         conn.close()
 
 def add_upload_record(user_id, stored_filename, original_name):
-    """Add upload record to database"""
+    """Add upload record to database with better error handling"""
     conn = get_db_conn()
     cursor = conn.cursor()
     try:
+        print(f"💾 Saving upload record: user_id={user_id}, stored={stored_filename}, original={original_name}")  # Debug
+        
         cursor.execute(
             "INSERT INTO uploads (user_id, filename, original_name) VALUES (?, ?, ?)",
             (user_id, stored_filename, original_name)
         )
         conn.commit()
-        return cursor.lastrowid
+        upload_id = cursor.lastrowid
+        print(f"✅ Upload record saved with ID: {upload_id}")  # Debug
+        return upload_id
     except Exception as e:
-        print(f"Error adding upload record: {e}")
+        print(f"❌ Error adding upload record: {e}")
         return None
     finally:
         conn.close()
@@ -850,9 +854,17 @@ def debug_api():
 def history():
     if "user" not in session:
         return redirect(url_for("login"))
+    
     user = session["user"]
+    print(f"👤 User accessing history: {user['username']} (ID: {user['id']})")  # Debug
+    
     uploads = get_user_uploads(user["id"])
-    return render_template("history.html", username=user["username"], files=uploads)
+    print(f"📊 Uploads to display: {len(uploads)}")  # Debug
+    
+    return render_template("history.html", 
+                         username=user["username"], 
+                         files=uploads,
+                         uploads_count=len(uploads))
 
 @app.route("/download/<filename>")
 def download_file(filename):
@@ -865,5 +877,6 @@ def download_file(filename):
 # ---------- Run Application ----------
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
+
 
 
