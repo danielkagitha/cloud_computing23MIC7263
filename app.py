@@ -3,12 +3,11 @@ import zipfile
 import json
 import requests
 import xml.etree.ElementTree as ET
+import sqlite3
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, session, url_for, send_from_directory, flash
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
-import psycopg2
-from psycopg2 import pool
 import docx
 import textdistance
 
@@ -22,33 +21,57 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXT = (".docx", ".txt", ".pdf", ".md")
 
-# DB config from environment
-DB_CONFIG = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": int(os.getenv("DB_PORT", "5432")),
-    "user": os.getenv("DB_USER", "postgres"),
-    "password": os.getenv("DB_PASS", ""),
-    "database": os.getenv("DB_NAME", "plagiarism_db")
-}
+# SQLite database
+DATABASE_PATH = os.path.join(BASE_DIR, "plagiarism.db")
 
-# Create connection pool
-try:
-    db_pool = psycopg2.pool.SimpleConnectionPool(
-        minconn=1,
-        maxconn=10,
-        **DB_CONFIG
-    )
-    print("✅ Database connection pool created successfully")
-except Exception as e:
-    print(f"❌ Database connection failed: {e}")
-    db_pool = None
+def get_db_conn():
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+# ---------- Database Initialization ----------
+def init_database():
+    """Automatically create tables if they don't exist"""
+    conn = get_db_conn()
+    cursor = conn.cursor()
+    
+    try:
+        # Create users table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username VARCHAR(100) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Create uploads table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS uploads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                filename VARCHAR(255) NOT NULL,
+                original_name VARCHAR(255) NOT NULL,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        
+        conn.commit()
+        print("✅ Database tables created successfully")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error creating tables: {e}")
+        return False
+    finally:
+        conn.close()
+
+# Initialize database
+init_database()
 
 # ---------- Helper Functions ----------
-def get_db_conn():
-    if db_pool:
-        return db_pool.get_connection()
-    return None
-
 def extract_text(file_path):
     """Extract text from .docx or .txt files"""
     if not os.path.exists(file_path):
@@ -96,154 +119,91 @@ def create_user(username, password):
     """Create new user in database"""
     pw_hash = generate_password_hash(password)
     conn = get_db_conn()
-    if not conn:
-        return None
-    
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "INSERT INTO users (username, password_hash) VALUES (%s, %s)", 
+            "INSERT INTO users (username, password_hash) VALUES (?, ?)", 
             (username, pw_hash)
         )
         conn.commit()
         user_id = cursor.lastrowid
         return user_id
-    except psycopg2.Error as e:
-        conn.rollback()
+    except Exception as e:
         print(f"Error creating user: {e}")
         return None
     finally:
-        cursor.close()
         conn.close()
 
 def get_user_by_username(username):
     """Get user by username from database"""
     conn = get_db_conn()
-    if not conn:
-        return None
-    
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "SELECT id, username, password_hash FROM users WHERE username = %s", 
+            "SELECT id, username, password_hash FROM users WHERE username = ?", 
             (username,)
         )
         result = cursor.fetchone()
         if result:
             return {'id': result[0], 'username': result[1], 'password_hash': result[2]}
         return None
-    except psycopg2.Error as e:
+    except Exception as e:
         print(f"Error getting user: {e}")
         return None
     finally:
-        cursor.close()
         conn.close()
 
 def add_upload_record(user_id, stored_filename, original_name):
     """Add upload record to database"""
     conn = get_db_conn()
-    if not conn:
-        return None
-    
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "INSERT INTO uploads (user_id, filename, original_name) VALUES (%s, %s, %s)",
+            "INSERT INTO uploads (user_id, filename, original_name) VALUES (?, ?, ?)",
             (user_id, stored_filename, original_name)
         )
         conn.commit()
         return cursor.lastrowid
-    except psycopg2.Error as e:
-        conn.rollback()
+    except Exception as e:
         print(f"Error adding upload record: {e}")
         return None
     finally:
-        cursor.close()
         conn.close()
 
 def get_user_uploads(user_id):
     """Get all uploads for a user"""
     conn = get_db_conn()
-    if not conn:
-        return []
-    
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "SELECT filename, original_name, uploaded_at FROM uploads WHERE user_id = %s ORDER BY uploaded_at DESC", 
+            "SELECT filename, original_name, uploaded_at FROM uploads WHERE user_id = ? ORDER BY uploaded_at DESC", 
             (user_id,)
         )
         results = cursor.fetchall()
         return [{'filename': row[0], 'original_name': row[1], 'uploaded_at': row[2]} for row in results]
-    except psycopg2.Error as e:
+    except Exception as e:
         print(f"Error getting user uploads: {e}")
         return []
     finally:
-        cursor.close()
         conn.close()
 
 def get_all_uploads_except_user(user_id):
     """Get all uploads except current user's for comparison"""
     conn = get_db_conn()
-    if not conn:
-        return []
-    
     cursor = conn.cursor()
     try:
         cursor.execute("""
             SELECT u.filename, u.original_name, us.username 
             FROM uploads u 
             JOIN users us ON u.user_id = us.id 
-            WHERE u.user_id != %s
+            WHERE u.user_id != ?
         """, (user_id,))
         results = cursor.fetchall()
         return [{'filename': row[0], 'original_name': row[1], 'username': row[2]} for row in results]
-    except psycopg2.Error as e:
+    except Exception as e:
         print(f"Error getting all uploads: {e}")
         return []
     finally:
-        cursor.close()
-        conn.close()
-
-# ---------- Database Initialization ----------
-def init_database():
-    """Automatically create tables if they don't exist"""
-    conn = get_db_conn()
-    if not conn:
-        print("❌ Cannot connect to database")
-        return False
-    
-    cursor = conn.cursor()
-    try:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username VARCHAR(100) NOT NULL UNIQUE,
-                password_hash VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS uploads (
-                id SERIAL PRIMARY KEY,
-                user_id INT NOT NULL,
-                filename VARCHAR(255) NOT NULL,
-                original_name VARCHAR(255) NOT NULL,
-                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        """)
-        
-        conn.commit()
-        print("✅ Database tables created successfully")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error creating tables: {e}")
-        return False
-    finally:
-        cursor.close()
         conn.close()
 
 # ---------- Generic API Parser Functions ----------
@@ -684,5 +644,4 @@ def download_file(filename):
 
 # ---------- Run Application ----------
 if __name__ == "__main__":
-    init_database()
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
