@@ -1,5 +1,7 @@
-Flask
-python-docx
-textdistance
-beautifulsoup4
-gunicorn
+Flask==3.0.3
+mysql-connector-python==8.1.0
+python-docx==1.2.0
+textdistance==4.6.3
+gunicorn==23.0.0
+requests==2.31.0
+werkzeug==3.0.4
