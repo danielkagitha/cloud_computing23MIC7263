@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Plagiarism Checker</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .login-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px 35px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      text-align: center;
+    }
+
+    .logo {
+      font-size: 3rem;
+      margin-bottom: 15px;
+    }
+
+    .title {
+      color: #2d3748;
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #718096;
+      font-size: 1rem;
+      margin-bottom: 30px;
+      font-weight: 500;
+    }
+
+    .alert {
+      padding: 14px 18px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+      font-weight: 500;
+      border: none;
+      text-align: left;
+    }
+
+    .alert-error {
+      background: linear-gradient(135deg, #fed7d7, #feb2b2);
+      color: #c53030;
+      border-left: 4px solid #f56565;
+    }
+
+    .alert-success {
+      background: linear-gradient(135deg, #c6f6d5, #9ae6b4);
+      color: #276749;
+      border-left: 4px solid #48bb78;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .form-label {
+      display: block;
+      color: #4a5568;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 16px 18px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 10px;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    .login-btn:active {
+      transform: translateY(0);
+    }
+
+    .divider {
+      margin: 30px 0;
+      position: relative;
+      text-align: center;
+    }
+
+    .divider::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: #e2e8f0;
+    }
+
+    .divider-text {
+      background: white;
+      padding: 0 15px;
+      color: #718096;
+      font-size: 0.9rem;
+    }
+
+    .signup-link {
+      text-align: center;
+      margin-top: 25px;
+    }
+
+    .signup-text {
+      color: #718096;
+      margin-bottom: 15px;
+    }
+
+    .signup-btn {
+      display: inline-block;
+      padding: 14px 30px;
+      background: linear-gradient(135deg, #48bb78, #38a169);
+      color: white;
+      text-decoration: none;
+      border-radius: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .signup-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(72, 187, 120, 0.4);
+    }
+
+    /* Animation for form */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .login-card {
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    /* Responsive design */
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 30px 25px;
+      }
+      
+      .title {
+        font-size: 1.7rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <div class="logo">🔍</div>
+      <h1 class="title">Welcome Back</h1>
+      <p class="subtitle">Sign in to your Plagiarism Checker account</p>
+      
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      
+      <form method="POST">
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" name="username" class="form-input" placeholder="Enter your username" required>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" class="form-input" placeholder="Enter your password" required>
+        </div>
+        
+        <button type="submit" class="login-btn">
+          Sign In
+        </button>
+      </form>
+
+      <div class="divider">
+        <span class="divider-text">New to our platform?</span>
+      </div>
+
+      <div class="signup-link">
+        <p class="signup-text">Don't have an account yet?</p>
+        <a href="{{ url_for('signup') }}" class="signup-btn">
+          Create Account
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

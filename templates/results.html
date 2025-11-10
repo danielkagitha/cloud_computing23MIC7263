@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Results</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+    th { background: #f4f4f4; font-weight: bold; }
+    .back-btn { background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block; margin: 10px 0; }
+    .high-similarity { background-color: #ffebee; }
+    .medium-similarity { background-color: #fff3e0; }
+  </style>
+</head>
+<body>
+  <a href="{{ url_for('dashboard') }}" class="back-btn">← Back to Dashboard</a>
+  <h2>Top matches for "{{ filename }}"</h2>
+  
+  {% if results %}
+    <table>
+      <tr>
+        <th>File / Source</th>
+        <th>Similarity Score (%)</th>
+      </tr>
+      {% for r in results %}
+      <tr class="{% if r.score > 80 %}high-similarity{% elif r.score > 50 %}medium-similarity{% endif %}">
+        <td>{{ r.file }}</td>
+        <td>{{ r.score }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>No results found.</p>
+  {% endif %}
+</body>
+</html>

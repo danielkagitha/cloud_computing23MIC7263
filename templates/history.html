@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload History | Plagiarism Checker</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .history-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 25px 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-content h1 {
+      color: #2d3748;
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 15px;
+    }
+
+    .nav-btn {
+      padding: 12px 24px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dashboard-btn {
+      background: linear-gradient(135deg, #4a5568, #2d3748);
+      color: white;
+    }
+
+    .logout-btn {
+      background: linear-gradient(135deg, #fc8181, #f56565);
+      color: white;
+    }
+
+    .nav-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .history-section {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 25px;
+    }
+
+    .section-icon {
+      font-size: 1.5rem;
+    }
+
+    .section-title {
+      color: #2d3748;
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .files-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .files-table th {
+      background: linear-gradient(135deg, #4a5568, #2d3748);
+      color: white;
+      padding: 16px 20px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .files-table td {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #4a5568;
+    }
+
+    .files-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .files-table tr:hover {
+      background: #f7fafc;
+    }
+
+    .download-link {
+      background: linear-gradient(135deg, #48bb78, #38a169);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .download-link:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #718096;
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+
+    .empty-state h3 {
+      color: #4a5568;
+      margin-bottom: 10px;
+    }
+
+    .empty-state p {
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+      }
+
+      .nav-buttons {
+        justify-content: center;
+      }
+
+      .files-table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="history-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-content">
+        <h1>Upload History</h1>
+        <p style="color: #718096;">All your previously uploaded files</p>
+      </div>
+      <div class="nav-buttons">
+        <a href="{{ url_for('dashboard') }}" class="nav-btn dashboard-btn">
+          <span>📊</span> Dashboard
+        </a>
+        <a href="{{ url_for('logout') }}" class="nav-btn logout-btn">
+          <span>🚪</span> Logout
+        </a>
+      </div>
+    </div>
+
+    <!-- History Section -->
+    <div class="history-section">
+      <div class="section-header">
+        <span class="section-icon">📋</span>
+        <h3 class="section-title">Your Uploaded Files</h3>
+      </div>
+      
+      {% if files %}
+        <table class="files-table">
+          <thead>
+            <tr>
+              <th>Original Name</th>
+              <th>Stored Name</th>
+              <th>Upload Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for file in files %}
+            <tr>
+              <td>{{ file.original_name }}</td>
+              <td>{{ file.filename }}</td>
+              <td>{{ file.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td>
+                <a href="{{ url_for('download_file', filename=file.filename) }}" class="download-link" download>
+                  <span>📥</span> Download
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">📁</div>
+          <h3>No Upload History Yet</h3>
+          <p>Upload some files to see them listed here.</p>
+          <a href="{{ url_for('dashboard') }}" class="nav-btn dashboard-btn" style="display: inline-flex;">
+            <span>📊</span> Go to Dashboard
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

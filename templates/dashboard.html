@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plagiarism Checker | Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .dashboard-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header Styles */
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 25px 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-content h1 {
+      color: #2d3748;
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .welcome-text {
+      color: #718096;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 15px;
+    }
+
+    .nav-btn {
+      padding: 12px 24px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .history-btn {
+      background: linear-gradient(135deg, #9f7aea, #805ad5);
+      color: white;
+    }
+
+    .logout-btn {
+      background: linear-gradient(135deg, #fc8181, #f56565);
+      color: white;
+    }
+
+    .nav-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Alert Styles */
+    .alert {
+      padding: 16px 20px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+      font-weight: 500;
+      border: none;
+    }
+
+    .alert-success {
+      background: linear-gradient(135deg, #48bb78, #38a169);
+      color: white;
+    }
+
+    .alert-error {
+      background: linear-gradient(135deg, #f56565, #e53e3e);
+      color: white;
+    }
+
+    /* Comparison Sections */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 25px;
+      margin-bottom: 30px;
+    }
+
+    .comparison-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    .comparison-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .card-icon {
+      font-size: 1.5rem;
+    }
+
+    .card-title {
+      color: #2d3748;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-label {
+      display: block;
+      color: #4a5568;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .help-text {
+      color: #718096;
+      font-size: 0.85rem;
+      margin-top: 12px;
+      line-height: 1.4;
+    }
+
+    /* Recent Files Section */
+    .recent-files {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 25px;
+    }
+
+    .section-icon {
+      font-size: 1.5rem;
+    }
+
+    .section-title {
+      color: #2d3748;
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .files-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .files-table th {
+      background: linear-gradient(135deg, #4a5568, #2d3748);
+      color: white;
+      padding: 16px 20px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .files-table td {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #4a5568;
+    }
+
+    .files-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .files-table tr:hover {
+      background: #f7fafc;
+    }
+
+    .download-link {
+      background: linear-gradient(135deg, #48bb78, #38a169);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .download-link:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #718096;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+      }
+
+      .nav-links {
+        justify-content: center;
+      }
+
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .files-table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-content">
+        <h1>Plagiarism Checker</h1>
+        <p class="welcome-text">Welcome, {{ session.user.username }}!</p>
+      </div>
+      <div class="nav-links">
+        <a href="{{ url_for('history') }}" class="nav-btn history-btn">
+          <span>📊</span> History
+        </a>
+        <a href="{{ url_for('logout') }}" class="nav-btn logout-btn">
+          <span>🚪</span> Logout
+        </a>
+      </div>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- Comparison Grid -->
+    <div class="comparison-grid">
+      <!-- File vs File -->
+      <div class="comparison-card">
+        <div class="card-header">
+          <span class="card-icon">📄</span>
+          <h3 class="card-title">Compare Two Files</h3>
+        </div>
+        <form action="{{ url_for('compare_file_file') }}" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label class="form-label">First Document (.docx, .txt)</label>
+            <input type="file" name="file1" accept=".docx,.txt" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Second Document (.docx, .txt)</label>
+            <input type="file" name="file2" accept=".docx,.txt" class="form-input" required>
+          </div>
+          <button type="submit" class="submit-btn">
+            <span>🔍</span> Compare Files
+          </button>
+        </form>
+      </div>
+
+      <!-- File vs Folder -->
+      <div class="comparison-card">
+        <div class="card-header">
+          <span class="card-icon">📁</span>
+          <h3 class="card-title">File vs Folder (ZIP)</h3>
+        </div>
+        <form action="{{ url_for('compare_file_folder') }}" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label class="form-label">Main Document (.docx, .txt)</label>
+            <input type="file" name="main_file" accept=".docx,.txt" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ZIP Folder with Documents</label>
+            <input type="file" name="zip_folder" accept=".zip" class="form-input" required>
+          </div>
+          <button type="submit" class="submit-btn">
+            <span>🔍</span> Compare with Folder
+          </button>
+        </form>
+      </div>
+
+      <!-- File vs API -->
+      <div class="comparison-card">
+        <div class="card-header">
+          <span class="card-icon">🌐</span>
+          <h3 class="card-title">File vs Online API</h3>
+        </div>
+        <form action="{{ url_for('compare_file_api') }}" method="POST" enctype="multipart/form-data">
+          <div class="form-group">
+            <label class="form-label">Document to Check (.docx, .txt)</label>
+            <input type="file" name="main_file" accept=".docx,.txt" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Research API URL</label>
+            <input type="url" name="api_url" placeholder="https://api.example.com/papers" class="form-input" required>
+          </div>
+          <button type="submit" class="submit-btn">
+            <span>🔍</span> Check Against API
+          </button>
+        </form>
+        <p class="help-text">Example API: Semantic Scholar, arXiv, or any research paper API returning JSON</p>
+      </div>
+    </div>
+
+   
+</body>
+</html>
