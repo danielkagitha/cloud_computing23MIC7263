@@ -33,6 +33,54 @@ DB_CONFIG = {
     "auth_plugin": "mysql_native_password"
 }
 
+
+# Add this right after your DB_CONFIG in app.py
+
+def init_database():
+    """Automatically create tables if they don't exist"""
+    conn = get_db_conn()
+    if not conn:
+        print("❌ Cannot connect to database")
+        return False
+    
+    cursor = conn.cursor()
+    try:
+        # Create users table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(100) NOT NULL UNIQUE,
+                password_hash VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Create uploads table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS uploads (
+                id SERIAL PRIMARY KEY,
+                user_id INT NOT NULL,
+                filename VARCHAR(255) NOT NULL,
+                original_name VARCHAR(255) NOT NULL,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        
+        conn.commit()
+        print("✅ Database tables created successfully")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error creating tables: {e}")
+        return False
+    finally:
+        cursor.close()
+        conn.close()
+
+# Call this function when app starts
+init_database()
+
 # Create connection pool
 try:
     db_pool = pooling.MySQLConnectionPool(
@@ -938,3 +986,4 @@ def internal_error(error):
 # ---------- Run Application ----------
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
+
