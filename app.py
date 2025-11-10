@@ -572,6 +572,7 @@ def compare_file_folder():
 def compare_file_api():
     if "user" not in session:
         return redirect(url_for("login"))
+    
     user = session["user"]
     main_file = request.files.get("main_file")
     api_url = request.form.get("api_url", "").strip()
@@ -584,6 +585,11 @@ def compare_file_api():
         flash("Please provide a research API URL", "error")
         return redirect(url_for("dashboard"))
     
+    # Validate file
+    if not main_file.filename.lower().endswith(ALLOWED_EXT):
+        flash(f"Unsupported file type. Please upload: {', '.join(ALLOWED_EXT)}", "error")
+        return redirect(url_for("dashboard"))
+    
     user_folder = os.path.join(UPLOAD_FOLDER, user["username"])
     stored_main, orig_main, path_main = save_upload_file(user_folder, main_file)
     add_upload_record(user["id"], stored_main, orig_main)
@@ -594,38 +600,238 @@ def compare_file_api():
         return redirect(url_for("dashboard"))
     
     results = []
+    papers = []
+    
     try:
-        headers = {'User-Agent': 'Plagiarism-Checker/1.0', 'Accept': 'application/json,application/xml,text/xml'}
-        response = requests.get(api_url, headers=headers, timeout=20)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json,application/xml,text/xml,text/plain,*/*',
+            'Accept-Encoding': 'gzip, deflate'
+        }
+        
+        print(f"🔍 Fetching API URL: {api_url}")
+        response = requests.get(api_url, headers=headers, timeout=30)
         response.raise_for_status()
         
-        content_type = response.headers.get('content-type', '').split(';')[0]
+        content_type = response.headers.get('content-type', '').lower()
+        print(f"📄 Content-Type: {content_type}")
+        print(f"📏 Response size: {len(response.text)} characters")
+        
+        # Try different parsing methods
         papers = parse_generic_api_response(api_url, response.text, content_type)
         
+        # If no papers found, try fallback methods
         if not papers:
-            papers = auto_detect_format(response.text)
+            print("⚠️ No papers found with generic parser, trying fallback...")
+            papers = fallback_parse(response.text)
         
-        for paper in papers[:50]:
-            paper_text = f"{paper.get('title', '')}\n{paper.get('abstract', '')}"
+        print(f"📚 Found {len(papers)} papers")
+        
+        # Process papers for comparison
+        for i, paper in enumerate(papers[:20]):  # Limit to 20 papers for performance
+            paper_title = paper.get('title', 'Unknown Paper').strip()
+            paper_abstract = paper.get('abstract', '').strip()
+            
+            if not paper_title or paper_title == "Untitled Paper":
+                continue
+                
+            paper_text = f"{paper_title}\n{paper_abstract}"
+            
             if paper_text.strip():
                 score = round(similarity_score(main_text, paper_text), 2)
                 status = "High plagiarism" if score > 70 else "Medium plagiarism" if score > 40 else "Low plagiarism"
-                results.append({"file": paper.get('title', 'Unknown Paper'), "score": score, "status": status, "authors": paper.get('authors', 'Unknown'), "published": paper.get('published', '')})
+                
+                results.append({
+                    "file": paper_title[:100] + "..." if len(paper_title) > 100 else paper_title,
+                    "score": score, 
+                    "status": status, 
+                    "authors": paper.get('authors', 'Unknown')[:50],
+                    "published": paper.get('published', '')[:20]
+                })
         
         if not results:
-            results.append({"file": "No papers could be extracted from the API", "score": 0, "status": "No data", "authors": "", "published": ""})
+            flash("No comparable papers found in the API response", "warning")
+            results.append({
+                "file": "No comparable papers found", 
+                "score": 0, 
+                "status": "No data", 
+                "authors": "", 
+                "published": ""
+            })
+            
     except requests.exceptions.RequestException as e:
-        results.append({"file": f"API Connection Error: {str(e)}", "score": 0, "status": "Error", "authors": "", "published": ""})
+        print(f"❌ API Request Error: {e}")
+        flash(f"API Connection Error: {str(e)}", "error")
+        results.append({
+            "file": f"API Connection Error: {str(e)}", 
+            "score": 0, 
+            "status": "Error", 
+            "authors": "", 
+            "published": ""
+        })
     except Exception as e:
-        results.append({"file": f"Processing Error: {str(e)}", "score": 0, "status": "Error", "authors": "", "published": ""})
+        print(f"❌ Processing Error: {e}")
+        flash(f"Error processing API response: {str(e)}", "error")
+        results.append({
+            "file": f"Processing Error: {str(e)}", 
+            "score": 0, 
+            "status": "Error", 
+            "authors": "", 
+            "published": ""
+        })
     
     results = sorted(results, key=lambda x: x["score"], reverse=True)[:15]
-    return render_template("results.html", results=results, filename=orig_main, comparison_type="File vs Research API", api_url=api_url)
+    return render_template("results.html", results=results, filename=orig_main, 
+                         comparison_type="File vs Research API", api_url=api_url)
 
-@app.route("/compare_api", methods=["POST"])
-def compare_api():
-    return compare_file_api()
+# Improved API parsing functions
+def parse_generic_api_response(api_url, response_content, content_type):
+    papers = []
+    
+    print(f"🔧 Parsing API response. Content-Type: {content_type}")
+    
+    try:
+        # Try JSON first
+        if 'json' in content_type or api_url.endswith('.json'):
+            papers = extract_papers_from_json(response_content)
+        # Try XML/RSS
+        elif 'xml' in content_type or 'rss' in content_type or api_url.endswith(('.xml', '.rss')):
+            papers = extract_papers_from_xml(response_content)
+        # Auto-detect for unknown content types
+        else:
+            papers = auto_detect_format(response_content)
+            
+    except Exception as e:
+        print(f"❌ Error in parse_generic_api_response: {e}")
+        # Try fallback parsing
+        papers = fallback_parse(response_content)
+    
+    print(f"📝 Parsed {len(papers)} papers")
+    return papers
 
+def extract_papers_from_json(content):
+    """Extract papers from JSON content with better error handling"""
+    papers = []
+    
+    try:
+        # Parse JSON content
+        if isinstance(content, str):
+            data = json.loads(content)
+        else:
+            data = content
+            
+        print(f"🔍 JSON data type: {type(data)}")
+        
+        # Handle different JSON structures
+        if isinstance(data, list):
+            # Direct list of papers
+            papers_list = data
+        elif isinstance(data, dict):
+            # Look for paper arrays in common keys
+            possible_keys = ['papers', 'data', 'results', 'works', 'documents', 'items', 'publications', 'entries']
+            papers_list = None
+            
+            for key in possible_keys:
+                if key in data and isinstance(data[key], list):
+                    papers_list = data[key]
+                    print(f"✅ Found papers in key: {key}")
+                    break
+            
+            # If no specific key found, use the entire dict as one paper
+            if not papers_list:
+                papers_list = [data]
+        else:
+            papers_list = []
+        
+        # Extract paper information
+        for paper_data in papers_list[:50]:  # Limit for performance
+            if isinstance(paper_data, dict):
+                paper = extract_paper_info(paper_data)
+                if paper and paper.get('title') and paper['title'] != "Untitled Paper":
+                    papers.append(paper)
+                    
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON decode error: {e}")
+    except Exception as e:
+        print(f"❌ Error extracting papers from JSON: {e}")
+    
+    return papers
+
+def extract_paper_info(paper_dict):
+    """Extract paper information with better field detection"""
+    paper = {}
+    
+    # Title fields (prioritized order)
+    title_fields = ['title', 'name', 'document_title', 'paper_title', 'heading', 'headline']
+    paper['title'] = find_value(paper_dict, title_fields) or "Untitled Paper"
+    
+    # Abstract/summary fields
+    abstract_fields = ['abstract', 'summary', 'description', 'content', 'paper_abstract', 'snippet']
+    paper['abstract'] = find_value(paper_dict, abstract_fields) or ""
+    
+    # Author fields
+    author_fields = ['authors', 'author', 'creators', 'contributors', 'writer', 'posted-by']
+    authors_data = find_value(paper_dict, author_fields)
+    
+    if isinstance(authors_data, list):
+        # Extract author names from list of dicts or strings
+        author_names = []
+        for author in authors_data:
+            if isinstance(author, dict):
+                name = author.get('name') or author.get('full_name') or str(author)
+            else:
+                name = str(author)
+            author_names.append(name)
+        paper['authors'] = ", ".join(author_names[:5])  # Limit authors
+    elif isinstance(authors_data, str):
+        paper['authors'] = authors_data
+    else:
+        paper['authors'] = "Unknown Author"
+    
+    # Date fields
+    date_fields = ['published', 'publication_date', 'date', 'created', 'year', 'updated', 'pubDate']
+    paper['published'] = find_value(paper_dict, date_fields) or ""
+    
+    return paper
+
+# Add debug endpoint to test API parsing
+@app.route("/debug_api", methods=["POST"])
+def debug_api():
+    """Debug endpoint to test API parsing without file comparison"""
+    if "user" not in session:
+        return redirect(url_for("login"))
+    
+    api_url = request.form.get("api_url", "").strip()
+    
+    if not api_url:
+        return "Please provide an API URL"
+    
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json,application/xml,text/xml,text/plain,*/*'
+        }
+        
+        response = requests.get(api_url, headers=headers, timeout=30)
+        response.raise_for_status()
+        
+        content_type = response.headers.get('content-type', '')
+        papers = parse_generic_api_response(api_url, response.text, content_type)
+        
+        debug_info = {
+            'url': api_url,
+            'status_code': response.status_code,
+            'content_type': content_type,
+            'response_size': len(response.text),
+            'papers_found': len(papers),
+            'papers': papers[:5],  # Show first 5 papers
+            'first_100_chars': response.text[:100]
+        }
+        
+        return f"<pre>{json.dumps(debug_info, indent=2, ensure_ascii=False)}</pre>"
+        
+    except Exception as e:
+        return f"Error: {str(e)}"
 @app.route("/history")
 def history():
     if "user" not in session:
@@ -645,3 +851,4 @@ def download_file(filename):
 # ---------- Run Application ----------
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
+
