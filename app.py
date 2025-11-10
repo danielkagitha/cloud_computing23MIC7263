@@ -171,22 +171,36 @@ def add_upload_record(user_id, stored_filename, original_name):
         conn.close()
 
 def get_user_uploads(user_id):
-    """Get all uploads for a user"""
+    """Get all uploads for a user with better error handling"""
     conn = get_db_conn()
     cursor = conn.cursor()
     try:
+        print(f"🔍 Fetching uploads for user_id: {user_id}")  # Debug print
+        
         cursor.execute(
-            "SELECT filename, original_name, uploaded_at FROM uploads WHERE user_id = ? ORDER BY uploaded_at DESC", 
+            "SELECT id, filename, original_name, uploaded_at FROM uploads WHERE user_id = ? ORDER BY uploaded_at DESC", 
             (user_id,)
         )
         results = cursor.fetchall()
-        return [{'filename': row[0], 'original_name': row[1], 'uploaded_at': row[2]} for row in results]
+        print(f"📁 Found {len(results)} uploads")  # Debug print
+        
+        uploads = []
+        for row in results:
+            upload = {
+                'id': row[0],
+                'filename': row[1],
+                'original_name': row[2],
+                'uploaded_at': row[3]
+            }
+            print(f"📄 Upload: {upload}")  # Debug print
+            uploads.append(upload)
+            
+        return uploads
     except Exception as e:
-        print(f"Error getting user uploads: {e}")
+        print(f"❌ Error getting user uploads: {e}")
         return []
     finally:
         conn.close()
-
 def get_all_uploads_except_user(user_id):
     """Get all uploads except current user's for comparison"""
     conn = get_db_conn()
@@ -851,4 +865,5 @@ def download_file(filename):
 # ---------- Run Application ----------
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", "5000")))
+
 
